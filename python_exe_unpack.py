@@ -322,7 +322,7 @@ class MagicPrepend():
                     prepend_pyc.write(pyc_data.read())
                     pyc_data.close()
 
-            (total, okay, failed, verify_failed) = PythonExectable.decompile_pyc(None, [edited_pyc.name], edited_py_name)
+            (total, okay, failed, verify_failed) = PythonExectable.decompile_pyc(os.path.dirname(edited_pyc.name), [edited_pyc.name], edited_py_name)
             if failed == 0 and verify_failed == 0:
                 print("[+] Successfully decompiled.")
             else:
