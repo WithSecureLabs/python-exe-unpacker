@@ -234,7 +234,7 @@ class PyInstaller(PythonExectable):
     def __pyinstxtractor_extract(self):
         if self.py_inst_archive.getCArchiveInfo():
             self.py_inst_archive.parseTOC()
-            self.py_inst_archive.extractFiles(self.extraction_dir)
+            self.py_inst_archive.extractFiles(custom_dir=self.extraction_dir)
             print('[*] Successfully extracted pyinstaller exe.')
 
 
