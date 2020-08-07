@@ -7,7 +7,18 @@ A script that helps researcher to unpack and decompile executable written in pyt
 
 This script glues together several tools available to the community. Hopefully, this can help people in their daily job. Several YARA rules are available to determine if the executable is written in python (This script also confirms if the executable is created with either py2exe or pyinstaller).
 
-## Requirements
+## Requirements & Install
+
+
+### Docker
+
+Build the image with: `docker build -t python_exe_unpack .`
+Run the image with: `docker run --rm -it -v $(pwd):/data python_exe_unpack`
+
+Your current dir will be exposed as `/data` in the container...
+
+
+### Manual Install 
 - Python 2.7 or later. 
 - Install all the dependency needed:<br/>
     `pip2 install --user -r requirements.txt`<br/>
