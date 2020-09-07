@@ -1,12 +1,10 @@
-#!/usr/bin/python
-
 """
-PyInstaller Extractor v1.8 (Supports pyinstaller 3.2, 3.1, 3.0, 2.1, 2.0)
+PyInstaller Extractor v2.0 (Supports pyinstaller 4.0, 3.6, 3.5, 3.4, 3.3, 3.2, 3.1, 3.0, 2.1, 2.0)
 Author : Extreme Coders
 E-mail : extremecoders(at)hotmail(dot)com
 Web    : https://0xec.blogspot.com
-Date   : 28-April-2017
-Url    : https://sourceforge.net/projects/pyinstallerextractor/
+Date   : 26-March-2020
+Url    : https://github.com/extremecoders-re/pyinstxtractor
 
 For any suggestions, leave a comment on
 https://forum.tuts4you.com/topic/34455-pyinstaller-extractor/
@@ -72,29 +70,34 @@ Version 1.8 (April 28, 2017)
 -------------------------------------------------
 - Support for sub-directories in .pyz files (Thanks to Moritz Kroll @ Avira Operations GmbH & Co. KG)
 
+Version 1.9 (November 29, 2017)
+-------------------------------------------------
+- Added support for pyinstaller 3.3
+- Display the scripts which are run at entry (Thanks to Michael Gillespie @ malwarehunterteam for the feature request)
 
+Version 2.0 (March 26, 2020)
+-------------------------------------------------
+- Project migrated to github
+- Supports pyinstaller 3.6
+- Added support for Python 3.7, 3.8
+- The header of all extracted pyc's are now automatically fixed
 """
 
-"""
-Author: In Ming Loh
-Email: inming.loh@countercept.com
-
-Changes have been made to Version 1.8 (April 28, 2017).
-
-CHANGELOG
-================================================
-- Function extractFiles(self, custom_dir=None) has been modfied to allow custom output directory.
-
-"""
-
+from __future__ import print_function
 import os
 import struct
 import marshal
 import zlib
 import sys
-import imp
-import types
 from uuid import uuid4 as uniquename
+
+# imp is deprecated in Python3 in favour of importlib
+if sys.version_info.major == 3:
+    from importlib.util import MAGIC_NUMBER
+    pyc_magic = MAGIC_NUMBER
+else:
+    import imp
+    pyc_magic = imp.get_magic()
 
 
 class CTOCEntry:
@@ -121,7 +124,7 @@ class PyInstArchive:
             self.fPtr = open(self.filePath, 'rb')
             self.fileSize = os.stat(self.filePath).st_size
         except:
-            print('[*] Error: Could not open {0}'.format(self.filePath))
+            print('[!] Error: Could not open {0}'.format(self.filePath))
             return False
         return True
 
@@ -134,14 +137,14 @@ class PyInstArchive:
 
 
     def checkFile(self):
-        print('[*] Processing {0}'.format(self.filePath))
+        print('[+] Processing {0}'.format(self.filePath))
         # Check if it is a 2.0 archive
         self.fPtr.seek(self.fileSize - self.PYINST20_COOKIE_SIZE, os.SEEK_SET)
         magicFromFile = self.fPtr.read(len(self.MAGIC))
 
         if magicFromFile == self.MAGIC:
             self.pyinstVer = 20     # pyinstaller 2.0
-            print('[*] Pyinstaller version: 2.0')
+            print('[+] Pyinstaller version: 2.0')
             return True
 
         # Check for pyinstaller 2.1+ before bailing out
@@ -149,11 +152,11 @@ class PyInstArchive:
         magicFromFile = self.fPtr.read(len(self.MAGIC))
 
         if magicFromFile == self.MAGIC:
-            print('[*] Pyinstaller version: 2.1+')
+            print('[+] Pyinstaller version: 2.1+')
             self.pyinstVer = 21     # pyinstaller 2.1+
             return True
 
-        print('[*] Error : Unsupported pyinstaller version or not a pyinstaller archive')
+        print('[!] Error : Unsupported pyinstaller version or not a pyinstaller archive')
         return False
 
 
@@ -174,10 +177,10 @@ class PyInstArchive:
                 struct.unpack('!8siiii64s', self.fPtr.read(self.PYINST21_COOKIE_SIZE))
 
         except:
-            print('[*] Error : The file is not a pyinstaller archive')
+            print('[!] Error : The file is not a pyinstaller archive')
             return False
 
-        print('[*] Python version: {0}'.format(self.pyver))
+        print('[+] Python version: {0}'.format(self.pyver))
 
         # Overlay is the data appended at the end of the PE
         self.overlaySize = lengthofPackage
@@ -185,7 +188,7 @@ class PyInstArchive:
         self.tableOfContentsPos = self.overlayPos + toc
         self.tableOfContentsSize = tocLen
 
-        print('[*] Length of package: {0} bytes'.format(self.overlaySize))
+        print('[+] Length of package: {0} bytes'.format(self.overlaySize))
         return True
 
 
@@ -222,22 +225,27 @@ class PyInstArchive:
                                 ))
 
             parsedLen += entrySize
-        print('[*] Found {0} files in CArchive'.format(len(self.tocList)))
+        print('[+] Found {0} files in CArchive'.format(len(self.tocList)))
 
 
-    def extractFiles(self, custom_dir=None):
-        print('[*] Beginning extraction...please standby')
-        if custom_dir is None:
-            extractionDir = os.path.join(os.getcwd(), os.path.basename(self.filePath) + '_extracted')
+    def _writeRawData(self, filepath, data):
+        nm = filepath.replace('\\', os.path.sep).replace('/', os.path.sep).replace('..', '__')
+        nmDir = os.path.dirname(nm)
+        if nmDir != '' and not os.path.exists(nmDir): # Check if path exists, create if not
+            os.makedirs(nmDir)
 
-            if not os.path.exists(extractionDir):
-                os.mkdir(extractionDir)
+        with open(nm, 'wb') as f:
+            f.write(data)
 
-            os.chdir(extractionDir)
-        else:
-            if not os.path.exists(custom_dir):
-                os.makedirs(custom_dir)
-            os.chdir(custom_dir)
+
+    def extractFiles(self):
+        print('[+] Beginning extraction...please standby')
+        extractionDir = os.path.join(os.getcwd(), os.path.basename(self.filePath) + '_extracted')
+
+        if not os.path.exists(extractionDir):
+            os.mkdir(extractionDir)
+
+        os.chdir(extractionDir)
 
         for entry in self.tocList:
             basePath = os.path.dirname(entry.name)
@@ -255,11 +263,39 @@ class PyInstArchive:
                 # Comment out the assertion in such a case
                 assert len(data) == entry.uncmprsdDataSize # Sanity Check
 
-            with open(entry.name, 'wb') as f:
-                f.write(data)
+            if entry.typeCmprsData == b's':
+                # s -> ARCHIVE_ITEM_PYSOURCE
+                # Entry point are expected to be python scripts
+                print('[+] Possible entry point: {0}.pyc'.format(entry.name))
+                self._writePyc(entry.name + '.pyc', data)
 
-            if entry.typeCmprsData == b'z':
-                self._extractPyz(entry.name)
+            elif entry.typeCmprsData == b'M' or entry.typeCmprsData == b'm':
+                # M -> ARCHIVE_ITEM_PYPACKAGE
+                # m -> ARCHIVE_ITEM_PYMODULE
+                # packages and modules are pyc files with their header's intact
+                self._writeRawData(entry.name + '.pyc', data)
+
+            else:
+                self._writeRawData(entry.name, data)
+
+                if entry.typeCmprsData == b'z' or entry.typeCmprsData == b'Z':
+                    self._extractPyz(entry.name)
+
+
+    def _writePyc(self, filename, data):
+        with open(filename, 'wb') as pycFile:
+            pycFile.write(pyc_magic)            # pyc magic
+
+            if self.pyver >= 37:                # PEP 552 -- Deterministic pycs
+                pycFile.write(b'\0' * 4)        # Bitfield
+                pycFile.write(b'\0' * 8)        # (Timestamp + size) || hash 
+
+            else:
+                pycFile.write(b'\0' * 4)      # Timestamp
+                if self.pyver >= 33:
+                    pycFile.write(b'\0' * 4)  # Size parameter added in Python 3.3
+
+            pycFile.write(data)
 
 
     def _extractPyz(self, name):
@@ -274,9 +310,12 @@ class PyInstArchive:
 
             pycHeader = f.read(4) # Python magic value
 
-            if imp.get_magic() != pycHeader:
-                print('[!] Warning: The script is running in a different python version than the one used to build the executable')
-                print('    Run this script in Python{0} to prevent extraction errors(if any) during unmarshalling'.format(self.pyver))
+            # Skip PYZ extraction if not running under the same python version
+            if pyc_magic != pycHeader:
+                print('[!] Warning: This script is running in a different Python version than the one used to build the executable.')
+                print('[!] Please run this script in Python{0} to prevent extraction errors during unmarshalling'.format(self.pyver))
+                print('[!] Skipping pyz extraction')
+                return
 
             (tocPosition, ) = struct.unpack('!i', f.read(4))
             f.seek(tocPosition, os.SEEK_SET)
@@ -287,7 +326,7 @@ class PyInstArchive:
                 print('[!] Unmarshalling FAILED. Cannot extract {0}. Extracting remaining files.'.format(name))
                 return
 
-            print('[*] Found {0} files in PYZ archive'.format(len(toc)))
+            print('[+] Found {0} files in PYZ archive'.format(len(toc)))
 
             # From pyinstaller 3.1+ toc is a list of tuples
             if type(toc) == list:
@@ -296,39 +335,40 @@ class PyInstArchive:
             for key in toc.keys():
                 (ispkg, pos, length) = toc[key]
                 f.seek(pos, os.SEEK_SET)
-
                 fileName = key
+
                 try:
                     # for Python > 3.3 some keys are bytes object some are str object
-                    fileName = key.decode('utf-8')
+                    fileName = fileName.decode('utf-8')
                 except:
                     pass
 
-                # Make sure destination directory exists, ensuring we keep inside dirName
-                destName = os.path.join(dirName, fileName.replace("..", "__"))
-                destDirName = os.path.dirname(destName)
-                if not os.path.exists(destDirName):
-                    os.makedirs(destDirName)
+                # Prevent writing outside dirName
+                fileName = fileName.replace('..', '__').replace('.', os.path.sep)
+
+                if ispkg == 1:
+                    filePath = os.path.join(dirName, fileName, '__init__.pyc')
+
+                else:
+                    filePath = os.path.join(dirName, fileName + '.pyc')
+
+                fileDir = os.path.dirname(filePath)
+                if not os.path.exists(fileDir):
+                    os.makedirs(fileDir)
 
                 try:
                     data = f.read(length)
                     data = zlib.decompress(data)
                 except:
-                    print('[!] Error: Failed to decompress {0}, probably encrypted. Extracting as is.'.format(fileName))
-                    open(destName + '.pyc.encrypted', 'wb').write(data)
-                    continue
-
-                with open(destName + '.pyc', 'wb') as pycFile:
-                    pycFile.write(pycHeader)      # Write pyc magic
-                    pycFile.write(b'\0' * 4)      # Write timestamp
-                    if self.pyver >= 33:
-                        pycFile.write(b'\0' * 4)  # Size parameter added in Python 3.3
-                    pycFile.write(data)
+                    print('[!] Error: Failed to decompress {0}, probably encrypted. Extracting as is.'.format(filePath))
+                    open(filePath + '.encrypted', 'wb').write(data)
+                else:
+                    self._writePyc(filePath, data)
 
 
 def main():
     if len(sys.argv) < 2:
-        print('[*] Usage: pyinstxtractor.py <filename>')
+        print('[+] Usage: pyinstxtractor.py <filename>')
 
     else:
         arch = PyInstArchive(sys.argv[1])
@@ -338,7 +378,7 @@ def main():
                     arch.parseTOC()
                     arch.extractFiles()
                     arch.close()
-                    print('[*] Successfully extracted pyinstaller archive: {0}'.format(sys.argv[1]))
+                    print('[+] Successfully extracted pyinstaller archive: {0}'.format(sys.argv[1]))
                     print('')
                     print('You can now use a python decompiler on the pyc files within the extracted directory')
                     return
