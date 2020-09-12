@@ -1,0 +1,12 @@
+# pyenv local
+.python-version
+
+# compiled pyc
+__pycache__/
+*.pyc
+
+# vscode
+.vscode/
+
+# pycharm
+.idea/
