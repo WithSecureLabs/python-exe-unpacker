@@ -2,11 +2,13 @@ Author: In Ming Loh (inming.loh@countercept.com - @tantaryu) <br />
 Company: Countercept (@countercept) <br />
 Website: https://www.countercept.com <br />
 
+---
+
 ## Introduction
 A script that helps researcher to unpack and decompile executable written in python. However, right now this only supports executable created with py2exe and pyinstaller.
 
 This script glues together several tools available to the community. Hopefully, this can help people in their daily job. Several YARA rules are available to determine if the executable is written in python (This script also confirms if the executable is created with either py2exe or pyinstaller).
-
+---
 ## Requirements
 - Python 2.7 or later. 
 - Install all the dependency needed:<br/>
@@ -14,6 +16,7 @@ This script glues together several tools available to the community. Hopefully, 
         or if you fancy to have your dependency installed with root permission<br/>
     `sudo pip2 install -r requirements.txt`
 
+---
 
 ## Getting Started
 - python python_exe_unpack.py -i [malware.exe]
@@ -46,6 +49,8 @@ This script glues together several tools available to the community. Hopefully, 
 
 - python python_exe_unpack.py -p [pyc file]
     * In the above example, sometimes the python file that contains the main logic will not be in the format that uncompyle6 accept (Missing python magic numbers). The above command will prepend magic numbers and decompile it (If magic number is already preprended it will not add it and just proceed with decompiling).
+
+---
 
 ## Credits
 - Extreme Coders for their pyinstxtractor.py script to help unpack pyinstaller executable.
