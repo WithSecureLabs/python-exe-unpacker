@@ -92,10 +92,15 @@ import struct
 import marshal
 import zlib
 import sys
-import imp
 import types
 from uuid import uuid4 as uniquename
 
+try:
+    import importlib.util 
+    PYC_MAGIC=importlib.util.MAGIC_NUMBER
+except ImportError: 
+    import imp
+    PYC_MAGIC=imp.get_magic()
 
 class CTOCEntry:
     def __init__(self, position, cmprsdDataSize, uncmprsdDataSize, cmprsFlag, typeCmprsData, name):
@@ -274,7 +279,7 @@ class PyInstArchive:
 
             pycHeader = f.read(4) # Python magic value
 
-            if imp.get_magic() != pycHeader:
+            if PYC_MAGIC != pycHeader:
                 print('[!] Warning: The script is running in a different python version than the one used to build the executable')
                 print('    Run this script in Python{0} to prevent extraction errors(if any) during unmarshalling'.format(self.pyver))
 
